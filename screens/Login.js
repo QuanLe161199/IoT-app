@@ -15,15 +15,19 @@ const Login = ({ navigation }) => {
     const [errorInput, setErrorInput] = useState(false);
 
     const handleSubmit = async () => {
+        var checkPoint = true;
         const querySnapshot = await getDocs(collection(firestore, "account"));
         querySnapshot.forEach((doc) => {
             console.log(doc.id, " => ", doc.data());
             if (doc.data().email == email && doc.data().password == password) {
                 console.log("login successfully");
-                navigation.navigate("Home", { id: doc.id });
+                navigation.navigate("House List", { id: doc.id });
+                checkPoint = false;
             }
         });
-        setErrorInput(true);
+        if (checkPoint) {
+            setErrorInput(true);
+        }
     };
 
     return (

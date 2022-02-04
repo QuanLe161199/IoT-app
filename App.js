@@ -6,7 +6,7 @@ import { View, StyleSheet, Text, StatusBar } from "react-native";
 
 import Login from "./screens/Login";
 import SignUp from "./screens/SignUp";
-import Home from "./screens/Home";
+import HouseList from "./screens/HouseList";
 
 import { LogBox } from "react-native";
 
@@ -25,9 +25,9 @@ const App = () => {
     return (
         <NavigationContainer>
             <Stack.Navigator>
-                <Stack.Screen name="Login" component={Login} />
-                <Stack.Screen name="SignUp" component={SignUp} />
-                <Stack.Screen name="Home" component={Home} />
+                {/* <Stack.Screen name="Login" component={Login} />
+                <Stack.Screen name="SignUp" component={SignUp} /> */}
+                <Stack.Screen name="House List" component={HouseList} />
             </Stack.Navigator>
         </NavigationContainer>
     );
