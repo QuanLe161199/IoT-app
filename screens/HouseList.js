@@ -17,37 +17,60 @@ import {
     addDoc,
 } from "firebase/firestore";
 import DialogInput from "react-native-dialog-input";
-import { Marker, MapView } from "react-native-maps";
-
-const id = "QMjwLtD5eycKwqbEOJQS";
 
 const HouseList = ({ navigation, route }) => {
+    const [userId, setUserId] = useState("");
+    const [numHouse, setNumHouse] = useState(0);
     const [houseList, setHouseList] = useState([]);
     const [renderScreen, setRenderScreen] = useState(0);
     const [houseNameValid, setHouseNameValid] = useState(true);
     const [showDialog, setShowDialog] = useState(false);
 
     useEffect(async () => {
+        updateHouseList();
+    }, []);
+
+    const updateHouseList = async () => {
+        const id = route.params.id;
+        setUserId(id);
         var houseIdList = [];
         var houses = [];
         const querySnapshot = await getDocs(
             collection(firestore, `account/${id}/house`)
         );
+        var index = 0;
         querySnapshot.forEach((doc) => {
-            // doc.data() is never undefined for query doc snapshots
-            console.log(doc.id, " => ", doc.data());
+            index++;
             houseIdList.push(doc.id);
         });
+        setNumHouse(index);
 
-        if (houseIdList) {
-            houseIdList.forEach(async (houseId) => {
-                var house = await getDoc(doc(firestore, "house", houseId));
-                houses.push({ id: houseId, name: house.data().name });
-            });
+        if (houseIdList.length) {
+            var object1,
+                object2 = {};
+            for (let i = 0; i < houseIdList.length; i++) {
+                var house = await getDoc(
+                    doc(firestore, "house", houseIdList[i])
+                );
+                if (i % 2 == 0) {
+                    object1 = {
+                        id: house.id,
+                        name: house.data().name,
+                    };
+                } else {
+                    object2 = {
+                        id: house.id,
+                        name: house.data().name,
+                    };
+                    houses.push([object1, object2]);
+                }
+            }
+            if (houseIdList.length % 2) {
+                houses.push([object1]);
+            }
         }
-
         setHouseList(houses);
-    }, []);
+    };
 
     useEffect(() => {
         setTimeout(() => {
@@ -58,7 +81,7 @@ const HouseList = ({ navigation, route }) => {
     const addHouse = async (text) => {
         if (text.length) {
             const newHouse = await addDoc(
-                collection(firestore, `account/${id}/house`),
+                collection(firestore, `account/${userId}/house`),
                 {
                     role: "master",
                 }
@@ -69,12 +92,7 @@ const HouseList = ({ navigation, route }) => {
             });
 
             setShowDialog(false);
-            var houses = houseList;
-            houses.push({
-                id: newHouse.id,
-                name: text,
-            });
-            setHouseList(houses);
+            updateHouseList();
         }
     };
 
@@ -82,13 +100,16 @@ const HouseList = ({ navigation, route }) => {
         if (houseList.length)
             return houseList?.map((house) => {
                 return (
-                    <View key={house.id} style={{ margin: 10 }}>
+                    <View
+                        key={house[0].id}
+                        style={{ margin: 10, flexDirection: "row" }}
+                    >
                         <TouchableOpacity
                             style={styles.houseBtn}
                             onPress={() => {
                                 navigation.navigate("House Manager", {
-                                    id: id,
-                                    houseId: house.id,
+                                    id: userId,
+                                    houseId: house[0].id,
                                 });
                             }}
                         >
@@ -96,8 +117,43 @@ const HouseList = ({ navigation, route }) => {
                                 style={styles.houseLogo}
                                 source={require("../assets/house-icon.png")}
                             />
-                            <Text style={styles.buttonText}>{house.name}</Text>
+                            <Text style={styles.buttonText}>
+                                {house[0].name}
+                            </Text>
                         </TouchableOpacity>
+
+                        {house.length == 2 ? (
+                            <TouchableOpacity
+                                style={styles.houseBtn}
+                                onPress={() => {
+                                    navigation.navigate("House Manager", {
+                                        id: userId,
+                                        houseId: house[1].id,
+                                    });
+                                }}
+                            >
+                                <Image
+                                    style={styles.houseLogo}
+                                    source={require("../assets/house-icon.png")}
+                                />
+                                <Text style={styles.buttonText}>
+                                    {house[1].name}
+                                </Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity
+                                style={styles.houseBtn}
+                                onPress={() => {
+                                    setShowDialog(true);
+                                }}
+                            >
+                                <Image
+                                    style={styles.houseLogo}
+                                    source={require("../assets/add-house-icon.png")}
+                                />
+                                <Text style={styles.buttonText}>Add House</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 );
             });
@@ -106,7 +162,6 @@ const HouseList = ({ navigation, route }) => {
     return (
         <View style={styles.container}>
             <DialogInput
-                textInputProps={{ autoCorrect: false }}
                 isDialogVisible={showDialog}
                 hintTextColor="#ffffff"
                 title={"House name"}
@@ -121,7 +176,7 @@ const HouseList = ({ navigation, route }) => {
 
             {showHouseList()}
 
-            {houseList.length < 3 && (
+            {numHouse < 6 && numHouse % 2 == 0 && (
                 <TouchableOpacity
                     style={styles.houseBtn}
                     onPress={() => {
@@ -155,38 +210,40 @@ export default HouseList;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#30373f",
+        backgroundColor: "#0a041b",
         alignItems: "center",
         justifyContent: "center",
     },
     houseBtn: {
         width: 120,
         height: 120,
-        backgroundColor: "white",
+        backgroundColor: "#4451a3",
         borderRadius: 10,
         alignItems: "center",
         justifyContent: "center",
         margin: 10,
+        top: 0,
+        left: 0,
     },
     logoutBtn: {
-        width: 120,
-        height: 80,
-        backgroundColor: "#bcbcbc",
-        borderRadius: 10,
+        width: 118,
+        height: 118,
+        borderRadius: 60,
+        backgroundColor: "#4451a3",
         alignItems: "center",
         justifyContent: "center",
-        marginTop: 50,
+        marginTop: 40,
     },
     houseLogo: {
         width: 90,
         height: 80,
     },
     logoutLogo: {
-        width: 60,
-        height: 60,
+        width: 120,
+        height: 120,
     },
     buttonText: {
-        color: "black",
+        color: "white",
         fontSize: 18,
         maxWidth: 120,
     },

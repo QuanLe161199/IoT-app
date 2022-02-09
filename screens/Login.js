@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import firestore from "../firebase-config";
 import { collection, getDocs } from "firebase/firestore";
+import CryptoES from "crypto-es";
 
 const Login = ({ navigation }) => {
     const [email, setEmail] = useState("");
@@ -19,7 +20,10 @@ const Login = ({ navigation }) => {
         const querySnapshot = await getDocs(collection(firestore, "account"));
         querySnapshot.forEach((doc) => {
             console.log(doc.id, " => ", doc.data());
-            if (doc.data().email == email && doc.data().password == password) {
+            if (
+                doc.data().email == email &&
+                doc.data().password == CryptoES.SHA256(password).toString()
+            ) {
                 console.log("login successfully");
                 navigation.navigate("House List", { id: doc.id });
                 checkPoint = false;

@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import firestore from "../firebase-config";
 import { collection, getDocs, doc, addDoc } from "firebase/firestore";
+import CryptoES from "crypto-es";
 
 const SignUp = ({ navigation }) => {
     const [email, setEmail] = useState("");
@@ -25,7 +26,6 @@ const SignUp = ({ navigation }) => {
             );
             querySnapshot.forEach((doc) => {
                 // doc.data() is never undefined for query doc snapshots
-                console.log(doc.id, " => ", doc.data());
                 if (doc.data().email == email) {
                     emailExist = true;
                 }
@@ -34,10 +34,10 @@ const SignUp = ({ navigation }) => {
             if (emailExist) {
                 setEmailValid(false);
             } else {
-                //create an account
+                const hashPassword = CryptoES.SHA256(password).toString();
                 await addDoc(collection(firestore, "account"), {
                     email: email,
-                    password: password,
+                    password: hashPassword,
                 });
                 navigation.navigate("Login");
             }
@@ -94,6 +94,14 @@ const SignUp = ({ navigation }) => {
             </View>
             <TouchableOpacity style={styles.loginBtn} onPress={handleSubmit}>
                 <Text style={styles.loginText}>SUBMIT</Text>
+            </TouchableOpacity>
+            <TouchableOpacity>
+                <Text
+                    style={styles.loginText}
+                    onPress={() => navigation.navigate("Login")}
+                >
+                    LOGIN
+                </Text>
             </TouchableOpacity>
         </View>
     );
