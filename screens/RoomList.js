@@ -16,8 +16,10 @@ import {
     doc,
     setDoc,
     addDoc,
+    deleteDoc,
 } from "firebase/firestore";
 import DropDownPicker from "react-native-dropdown-picker";
+import CryptoES from "crypto-es";
 
 const RoomList = ({ navigation, route }) => {
     const [userId, setUserId] = useState("");
@@ -72,6 +74,12 @@ const RoomList = ({ navigation, route }) => {
             ),
         },
     ]);
+
+    const [showEditForm, setShowEditForm] = useState(false);
+    const [activeTab, setActiveTab] = useState("rename");
+    const [newName, setNewName] = useState("");
+    const [password, setPassword] = useState("");
+    const [roomId, setRoomId] = useState("");
 
     useEffect(async () => {
         setUserId(route.params.id);
@@ -200,6 +208,11 @@ const RoomList = ({ navigation, route }) => {
                                     roomId: room[0].id,
                                 });
                             }}
+                            onLongPress={() => {
+                                setShowEditForm(true);
+                                setRoomId(room[0].id);
+                            }}
+                            delayLongPress={500}
                         >
                             <Image
                                 style={styles.roomLogo}
@@ -220,6 +233,11 @@ const RoomList = ({ navigation, route }) => {
                                         roomId: room[1].id,
                                     });
                                 }}
+                                onLongPress={() => {
+                                    setShowEditForm(true);
+                                    setRoomId(room[1].id);
+                                }}
+                                delayLongPress={500}
                             >
                                 <Image
                                     style={styles.roomLogo}
@@ -247,8 +265,67 @@ const RoomList = ({ navigation, route }) => {
             });
     };
 
+    const editRoom = async () => {
+        if (activeTab == "rename") {
+            console.log(newName);
+            const room = await getDoc(doc(firestore, "room", roomId));
+            await setDoc(doc(firestore, "room", roomId), {
+                name: newName,
+                houseId: houseId,
+                type: room.data().type,
+            });
+            setNewName("");
+            setShowEditForm(false);
+        } else {
+            const user = await getDoc(doc(firestore, "account", userId));
+            if (user.data().password == CryptoES.SHA256(password).toString()) {
+                setShowEditForm(false);
+                setActiveTab("rename");
+
+                //delete rooms and devices in the house
+                const rooms = await getDocs(collection(firestore, "room"));
+
+                await deleteDoc(doc(firestore, "room", roomId));
+
+                const devices = await getDocs(collection(firestore, "device"));
+                devices.forEach((device) => {
+                    if (device.data().roomId == roomId) {
+                        if (
+                            device.data().type == "humidity" ||
+                            device.data().type == "temperature"
+                        ) {
+                            setDoc(doc(firestore, "device", device.id), {
+                                linked: false,
+                                name: device.data().name,
+                                roomId: "",
+                                type: device.data().type,
+                                value: device.data().value,
+                            });
+                        } else {
+                            setDoc(doc(firestore, "device", device.id), {
+                                linked: false,
+                                name: device.data().name,
+                                roomId: "",
+                                type: device.data().type,
+                                status: device.data().status,
+                            });
+                        }
+                    }
+                });
+            }
+            setPassword("");
+        }
+        updateRoomList();
+    };
+
     return (
-        <View style={modalVisible ? styles.containerModalOn : styles.container}>
+        <View
+            style={
+                modalVisible || showEditForm
+                    ? styles.containerModalOn
+                    : styles.container
+            }
+        >
             <Modal
                 animationType="slide"
                 transparent={true}
@@ -292,6 +369,96 @@ const RoomList = ({ navigation, route }) => {
                                 Submit
                             </Text>
                         </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showEditForm}
+                onRequestClose={() => {
+                    setModalVisible(!showEditForm);
+                }}
+            >
+                <View style={styles.centeredView}>
+                    <View style={styles.editModalView}>
+                        <View style={{ flexDirection: "row" }}>
+                            <TouchableOpacity
+                                style={
+                                    activeTab == "rename"
+                                        ? styles.modalTabBtnActive
+                                        : styles.modalTabBtnInactive
+                                }
+                            >
+                                <Text
+                                    style={styles.modalTextBtn}
+                                    onPress={() => {
+                                        setActiveTab("rename");
+                                        setPassword("");
+                                    }}
+                                >
+                                    Rename
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={
+                                    activeTab == "delete"
+                                        ? styles.modalTabBtnActive
+                                        : styles.modalTabBtnInactive
+                                }
+                            >
+                                <Text
+                                    style={styles.modalTextBtn}
+                                    onPress={() => {
+                                        setActiveTab("delete");
+                                        setNewName("");
+                                    }}
+                                >
+                                    Delete
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        {activeTab == "rename" ? (
+                            <TextInput
+                                style={styles.inputView}
+                                placeholder="Enter new name..."
+                                placeholderTextColor="#4451a3"
+                                onChangeText={(text) => setNewName(text)}
+                                value={newName}
+                            ></TextInput>
+                        ) : (
+                            <TextInput
+                                style={styles.inputView}
+                                placeholder="Enter your password..."
+                                placeholderTextColor="#4451a3"
+                                onChangeText={(text) => setPassword(text)}
+                                value={password}
+                            ></TextInput>
+                        )}
+                        <View style={{ flexDirection: "row" }}>
+                            <TouchableOpacity style={styles.modalBtn}>
+                                <Text
+                                    style={styles.modalTextBtn}
+                                    onPress={() => {
+                                        setShowEditForm(false);
+                                        setNewName("");
+                                        setPassword("");
+                                        setActiveTab("rename");
+                                    }}
+                                >
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalBtn}>
+                                <Text
+                                    style={styles.modalTextBtn}
+                                    onPress={editRoom}
+                                >
+                                    Submit
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
@@ -451,5 +618,59 @@ const styles = StyleSheet.create({
         textAlign: "center",
         fontWeight: "bold",
         fontSize: 20,
+    },
+    tabItem: {
+        backgroundColor: "white",
+        color: "#4451a3",
+        fontWeight: "bold",
+        fontSize: 20,
+        width: "100%",
+        padding: 0,
+    },
+    indicatorTabStyle: {
+        backgroundColor: "#4451a3",
+        height: 3,
+    },
+    tabStyle: {
+        color: "white",
+    },
+    editModalView: {
+        marginTop: 260,
+        marginLeft: 20,
+        marginRight: 20,
+        backgroundColor: "white",
+        borderRadius: 20,
+        padding: 35,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#ffffff",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+        height: 180,
+    },
+    modalTabBtnActive: {
+        backgroundColor: "white",
+        marginLeft: 21,
+        marginRight: 23,
+        marginTop: 30,
+        width: 100,
+        height: 35,
+        borderBottomWidth: 4,
+        borderColor: "#4451a3",
+    },
+    modalTabBtnInactive: {
+        backgroundColor: "white",
+        marginLeft: 21,
+        marginRight: 23,
+        marginTop: 30,
+        width: 100,
+        height: 35,
+        borderBottomWidth: 4,
+        borderColor: "white",
     },
 });

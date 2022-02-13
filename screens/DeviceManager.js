@@ -18,6 +18,7 @@ import {
     addDoc,
 } from "firebase/firestore";
 import DropDownPicker from "react-native-dropdown-picker";
+import CryptoES from "crypto-es";
 
 const DeviceManager = ({ navigation, route }) => {
     const [userId, setUserId] = useState(route.params.id);
@@ -31,6 +32,11 @@ const DeviceManager = ({ navigation, route }) => {
     const [nameDevice, setNameDevice] = useState(null);
     const [open, setOpen] = useState(false);
     const [value, setValue] = useState(null);
+    const [showEditForm, setShowEditForm] = useState(false);
+    const [activeTab, setActiveTab] = useState("rename");
+    const [newName, setNewName] = useState("");
+    const [password, setPassword] = useState("");
+    const [deviceId, setDeviceId] = useState("");
 
     const updateDeviceList = async () => {
         //get newest device button list
@@ -38,19 +44,23 @@ const DeviceManager = ({ navigation, route }) => {
         var deviceListPre = [];
         var querySnapshot = await getDocs(collection(firestore, "device"));
         querySnapshot.forEach((snapshot) => {
-            if (snapshot.data().linked) {
+            if (
+                route.params.roomId == snapshot.data().roomId &&
+                snapshot.data().linked
+            ) {
                 var data = snapshot.data();
-                data.deviceId = snapshot.id;
+                data.id = snapshot.id;
                 deviceListPre.push(data);
             }
         });
+        console.log(deviceListPre);
         setNumDevice(deviceListPre.length);
         var object1,
             object2 = {};
         for (let i = 0; i < deviceListPre.length; i++) {
             if (deviceListPre[i].roomId == roomId && deviceListPre[i].linked) {
                 var data = deviceListPre[i];
-                data.deviceId = deviceListPre[i].deviceId;
+                data.id = deviceListPre[i].id;
                 switch (deviceListPre[i].type) {
                     case "light":
                         data.status == "on"
@@ -85,13 +95,18 @@ const DeviceManager = ({ navigation, route }) => {
         }
 
         if (deviceListPre.length % 2) deviceListAvailable.push([object1]);
+        console.log(deviceListAvailable);
+
         setDeviceList(deviceListAvailable);
 
         //get newest real devices aren't linked
         var realDevicesNoLinked = [];
         querySnapshot = await getDocs(collection(firestore, "device"));
         querySnapshot.forEach((snapshot) => {
-            if (!snapshot.data().linked) {
+            if (
+                route.params.roomId == snapshot.data().roomId &&
+                !snapshot.data().linked
+            ) {
                 var data = { label: snapshot.data().name, value: snapshot.id };
                 switch (snapshot.data().type) {
                     case "light":
@@ -143,13 +158,14 @@ const DeviceManager = ({ navigation, route }) => {
 
     useEffect(async () => {
         updateDeviceList();
+        console.log(route.params.roomId);
     }, []);
 
-    useEffect(async () => {
-        setTimeout(() => {
-            updateDeviceList();
-        }, 10000);
-    });
+    // useEffect(async () => {
+    //     setTimeout(() => {
+    //         updateDeviceList();
+    //     }, 60000);
+    // });
 
     useEffect(() => {
         setTimeout(() => {
@@ -217,8 +233,13 @@ const DeviceManager = ({ navigation, route }) => {
                                 TouchableOpacity
                                 style={styles.deviceBtn}
                                 onPress={() => {
-                                    setStatus(device[0].deviceId);
+                                    setStatus(device[0].id);
                                 }}
+                                onLongPress={() => {
+                                    setShowEditForm(true);
+                                    setDeviceId(device[0].id);
+                                }}
+                                delayLongPress={500}
                             >
                                 <View style={{ flexDirection: "row" }}>
                                     <Image
@@ -240,8 +261,13 @@ const DeviceManager = ({ navigation, route }) => {
                                 TouchableOpacity
                                 style={styles.deviceBtn}
                                 onPress={() => {
-                                    setStatus(device[0].deviceId);
+                                    setStatus(device[0].id);
                                 }}
+                                onLongPress={() => {
+                                    setShowEditForm(true);
+                                    setDeviceId(device[0].id);
+                                }}
+                                delayLongPress={500}
                             >
                                 <Image
                                     style={styles.deviceLogo}
@@ -259,8 +285,13 @@ const DeviceManager = ({ navigation, route }) => {
                                     TouchableOpacity
                                     style={styles.deviceBtn}
                                     onPress={() => {
-                                        setStatus(device[1].deviceId);
+                                        setStatus(device[1].id);
                                     }}
+                                    onLongPress={() => {
+                                        setShowEditForm(true);
+                                        setDeviceId(device[1].id);
+                                    }}
+                                    delayLongPress={500}
                                 >
                                     <View style={{ flexDirection: "row" }}>
                                         <Image
@@ -282,8 +313,13 @@ const DeviceManager = ({ navigation, route }) => {
                                     TouchableOpacity
                                     style={styles.deviceBtn}
                                     onPress={() => {
-                                        setStatus(device[1].deviceId);
+                                        setStatus(device[1].id);
                                     }}
+                                    onLongPress={() => {
+                                        setShowEditForm(true);
+                                        setDeviceId(device[1].id);
+                                    }}
+                                    delayLongPress={500}
                                 >
                                     <Image
                                         style={styles.deviceLogo}
@@ -312,8 +348,78 @@ const DeviceManager = ({ navigation, route }) => {
             });
     };
 
+    const editDevice = async () => {
+        if (activeTab == "rename") {
+            console.log(newName);
+            console.log(deviceId);
+            const device = await getDoc(doc(firestore, "device", deviceId));
+            if (
+                device.data().type == "temperature" ||
+                device.data().type == "humidity"
+            ) {
+                await setDoc(doc(firestore, "device", deviceId), {
+                    name: newName,
+                    roomId: device.data().roomId,
+                    type: device.data().type,
+                    value: device.data().value,
+                    linked: device.data().linked,
+                });
+            } else {
+                await setDoc(doc(firestore, "device", deviceId), {
+                    name: newName,
+                    roomId: device.data().roomId,
+                    type: device.data().type,
+                    status: device.data().status,
+                    linked: device.data().linked,
+                });
+            }
+
+            setNewName("");
+            setShowEditForm(false);
+        } else {
+            const user = await getDoc(doc(firestore, "account", userId));
+            if (user.data().password == CryptoES.SHA256(password).toString()) {
+                setShowEditForm(false);
+                setActiveTab("rename");
+
+                const device = await getDoc(doc(firestore, "device", deviceId));
+
+                if (device.data().roomId == roomId) {
+                    if (
+                        device.data().type == "humidity" ||
+                        device.data().type == "temperature"
+                    ) {
+                        setDoc(doc(firestore, "device", device.id), {
+                            linked: false,
+                            name: device.data().name,
+                            roomId: device.data().roomId,
+                            type: device.data().type,
+                            value: device.data().value,
+                        });
+                    } else {
+                        setDoc(doc(firestore, "device", device.id), {
+                            linked: false,
+                            name: device.data().name,
+                            roomId: device.data().roomId,
+                            type: device.data().type,
+                            status: device.data().status,
+                        });
+                    }
+                }
+            }
+            setPassword("");
+        }
+        updateDeviceList();
+    };
+
     return (
-        <View style={modalVisible ? styles.container2 : styles.container}>
+        <View
+            style={
+                showEditForm || modalVisible
+                    ? styles.container2
+                    : styles.container
+            }
+        >
             <Modal
                 animationType="slide"
                 transparent={true}
@@ -357,6 +463,96 @@ const DeviceManager = ({ navigation, route }) => {
                                 <Text
                                     style={styles.modalTextBtn}
                                     onPress={addDevice}
+                                >
+                                    Submit
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showEditForm}
+                onRequestClose={() => {
+                    setModalVisible(!showEditForm);
+                }}
+            >
+                <View style={styles.centeredView}>
+                    <View style={styles.editModalView}>
+                        <View style={{ flexDirection: "row" }}>
+                            <TouchableOpacity
+                                style={
+                                    activeTab == "rename"
+                                        ? styles.modalTabBtnActive
+                                        : styles.modalTabBtnInactive
+                                }
+                            >
+                                <Text
+                                    style={styles.modalTextBtn}
+                                    onPress={() => {
+                                        setActiveTab("rename");
+                                        setPassword("");
+                                    }}
+                                >
+                                    Rename
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={
+                                    activeTab == "delete"
+                                        ? styles.modalTabBtnActive
+                                        : styles.modalTabBtnInactive
+                                }
+                            >
+                                <Text
+                                    style={styles.modalTextBtn}
+                                    onPress={() => {
+                                        setActiveTab("delete");
+                                        setNewName("");
+                                    }}
+                                >
+                                    Delete
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        {activeTab == "rename" ? (
+                            <TextInput
+                                style={styles.inputView}
+                                placeholder="Enter new name..."
+                                placeholderTextColor="#4451a3"
+                                onChangeText={(text) => setNewName(text)}
+                                value={newName}
+                            ></TextInput>
+                        ) : (
+                            <TextInput
+                                style={styles.inputView}
+                                placeholder="Enter your password..."
+                                placeholderTextColor="#4451a3"
+                                onChangeText={(text) => setPassword(text)}
+                                value={password}
+                            ></TextInput>
+                        )}
+                        <View style={{ flexDirection: "row" }}>
+                            <TouchableOpacity style={styles.modalBtn}>
+                                <Text
+                                    style={styles.modalTextBtn}
+                                    onPress={() => {
+                                        setShowEditForm(false);
+                                        setNewName("");
+                                        setPassword("");
+                                        setActiveTab("rename");
+                                    }}
+                                >
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalBtn}>
+                                <Text
+                                    style={styles.modalTextBtn}
+                                    onPress={editDevice}
                                 >
                                     Submit
                                 </Text>
@@ -532,5 +728,59 @@ const styles = StyleSheet.create({
         textAlign: "center",
         fontWeight: "bold",
         fontSize: 20,
+    },
+    tabItem: {
+        backgroundColor: "white",
+        color: "#4451a3",
+        fontWeight: "bold",
+        fontSize: 20,
+        width: "100%",
+        padding: 0,
+    },
+    indicatorTabStyle: {
+        backgroundColor: "#4451a3",
+        height: 3,
+    },
+    tabStyle: {
+        color: "white",
+    },
+    editModalView: {
+        marginTop: 260,
+        marginLeft: 20,
+        marginRight: 20,
+        backgroundColor: "white",
+        borderRadius: 20,
+        padding: 35,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#ffffff",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+        height: 180,
+    },
+    modalTabBtnActive: {
+        backgroundColor: "white",
+        marginLeft: 21,
+        marginRight: 23,
+        marginTop: 30,
+        width: 100,
+        height: 35,
+        borderBottomWidth: 4,
+        borderColor: "#4451a3",
+    },
+    modalTabBtnInactive: {
+        backgroundColor: "white",
+        marginLeft: 21,
+        marginRight: 23,
+        marginTop: 30,
+        width: 100,
+        height: 35,
+        borderBottomWidth: 4,
+        borderColor: "white",
     },
 });
