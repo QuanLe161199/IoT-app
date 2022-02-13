@@ -1,6 +1,6 @@
 # Basic Smart Home Project
 
-To do step by step:
+Follow step by step
 
 ```shell
 git clone https://github.com/QuanLe161199/IoT-app.git
