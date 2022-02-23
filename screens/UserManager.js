@@ -20,6 +20,7 @@ import {
 import DialogInput from "react-native-dialog-input";
 
 const HouseManager = ({ navigation, route }) => {
+    const [email, setEmail] = useState("");
     const [userList, setUserList] = useState([]);
     const [showDialog, setShowDialog] = useState(false);
     const [userId, setUserId] = useState("");
@@ -29,6 +30,8 @@ const HouseManager = ({ navigation, route }) => {
         setUserId(route.params.id);
         setHouseIdBtn(route.params.houseId);
         updateAccountList(route.params.houseId);
+        var user = await getDoc(doc(firestore, "account", route.params.id));
+        setEmail(user.data().email);
     }, []);
 
     const updateAccountList = async (houseId) => {
@@ -137,7 +140,7 @@ const HouseManager = ({ navigation, route }) => {
             ></DialogInput>
 
             <TouchableOpacity style={styles.masterBtn} onPress={() => {}}>
-                <Text style={styles.masterText}>quanlv161199@gmail.com</Text>
+                <Text style={styles.masterText}>{email}</Text>
             </TouchableOpacity>
 
             {userList?.map((user) => {
