@@ -161,11 +161,11 @@ const DeviceManager = ({ navigation, route }) => {
         console.log(route.params.roomId);
     }, []);
 
-    // useEffect(async () => {
-    //     setTimeout(() => {
-    //         updateDeviceList();
-    //     }, 60000);
-    // });
+    useEffect(async () => {
+        setTimeout(() => {
+            updateDeviceList();
+        }, 60000);
+    });
 
     useEffect(() => {
         setTimeout(() => {
