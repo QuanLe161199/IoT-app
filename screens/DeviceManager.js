@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     sensorText: {
-        fontSize: 25,
+        fontSize: 18,
         marginTop: 30,
         color: "white",
     },
